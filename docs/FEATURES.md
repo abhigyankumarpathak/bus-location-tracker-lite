@@ -4,8 +4,9 @@ The companion to [CHANGELOG](../CHANGELOG.md). This document exists mostly for
 the second half: the failure mode for this project is quietly rebuilding the full
 app one reasonable-sounding feature at a time.
 
-**Status: phase 2 of 6 complete.** Accounts work end to end and RLS is proven.
-Nothing is on a map yet.
+**Status: phase 3 of 6 complete.** An admin can describe the whole operation —
+buses, stops, the order a bus passes them, and who watches which one. Nothing is
+on a map yet, because nothing is reporting a position yet.
 
 ---
 
@@ -81,11 +82,46 @@ their children's; a **suspended** account sees nothing at all; no non-admin can
 read a `device_key`; and a student cannot create a bus, move themselves to
 another, or fake a position.
 
-### Phases 3–6 — not built
+### Phase 3 — admin config ✅
+
+| | |
+| --- | --- |
+| Buses: create, rename, pause, delete | ✅ Pausing is the default; deleting counts out what goes with it |
+| The tracker `device_key`: reveal, copy, rotate | ✅ Hidden until asked for; rotated in the database, never by the client |
+| Stops: found by address, not typed as coordinates | ✅ Nominatim, with the geocoder's own match shown before saving |
+| Stops: edit, pause, delete | ✅ |
+| The ordered run — a bus and the stops it passes | ✅ `set_bus_run()`, batched behind a Save button |
+| Student → bus → stop, with the `uses_it` opt-out | ✅ |
+| Parent ↔ child links | ✅ Not on the phase's list; added because a parent account is empty without one |
+| RLS re-tested, with the app out of the loop | ✅ 32 assertions — and now runnable locally, see below |
+
+Two things here are database functions rather than client updates, and for
+different reasons:
+
+- **`set_bus_run(bus, ordered_stops)`** — `unique (bus_id, position)` is
+  deferrable, and deferral reaches only to the end of a *transaction*, while
+  every PostgREST call is its own. Reordering from the client is two updates in
+  two transactions, and the first collides on a position the second was about to
+  vacate. It also drops the assignments to any stop leaving the run, and reports
+  how many: a stop the bus no longer reaches cannot have anyone waiting at it.
+- **`rotate_device_key(bus)`** — a device key is a password. The client has no
+  business choosing one.
+
+**`uses_it` is a database fact, not a UI preference.** `my_bus_ids()` filters on
+it, and every watch policy leans on that function — so pausing a student's stop
+stops Postgres serving that bus to that family at all. Proven from both sides in
+the test.
+
+**Running the RLS test.** Phase 2's assertions needed a throwaway Supabase
+project. [`supabase/local-shim.sql`](../supabase/local-shim.sql) fakes just
+enough of Supabase — the three PostgREST roles, `auth.users`, `auth.uid()`, and
+the default privileges that make `set role authenticated` behave like a real
+client — to run it against a plain local PostgreSQL instead.
+
+### Phases 4–6 — not built
 
 | Phase | What it adds |
 | --- | --- |
-| 3 · Admin config | CRUD for buses, stops, the ordered run, and student→bus→stop assignment |
 | 4 · Location in | `ingest-location` deployed, plus a simulator so 5 and 6 need no hardware |
 | 5 · The map | Live bus over its stops, minutes-away, and *last seen* when the tracker goes quiet |
 | 6 · Notifications | The three milestones, geofence entry, de-dup, Expo push |

@@ -5,6 +5,7 @@
     "version": "0.1.0",
     "scheme": "bustrackerlite",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
@@ -12,9 +13,16 @@
     },
     "android": {
       "package": "com.thecoder12321.bustrackingapplite",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "adaptiveIcon": {
+        "backgroundColor": "#0B1220",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
     },
     "web": {
+      "favicon": "./assets/favicon.png",
       "bundler": "metro",
       "output": "single"
     },
@@ -28,6 +36,7 @@
       [
         "expo-notifications",
         {
+          "icon": "./assets/notification-icon.png",
           "color": "#38BDF8",
           "defaultChannel": "default"
         }

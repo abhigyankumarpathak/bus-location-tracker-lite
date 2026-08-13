@@ -1,6 +1,8 @@
 import type { PropsWithChildren, ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -201,6 +203,40 @@ export function Loading() {
       <ActivityIndicator color={theme.accent} size="large" />
     </View>
   );
+}
+
+/**
+ * Ask before doing something that cannot be undone.
+ *
+ * The web path is not belt-and-braces. `react-native-web`'s Alert is literally
+ * `static alert() {}` — a no-op — so on the web build every confirmation
+ * silently resolves to nothing and the destructive action either never happens
+ * or happens unasked, depending on how the caller was written. Both are worse
+ * than the browser's own plain dialog.
+ */
+export function confirmAction(
+  title: string,
+  message: string,
+  confirmLabel = 'Continue',
+): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+  }
+  return new Promise((resolve) => {
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+      { text: confirmLabel, style: 'destructive', onPress: () => resolve(true) },
+    ]);
+  });
+}
+
+/** Tell the admin something happened. Same reason as above for the web path. */
+export function notify(title: string, message?: string) {
+  if (Platform.OS === 'web') {
+    window.alert(message ? `${title}\n\n${message}` : title);
+    return;
+  }
+  Alert.alert(title, message);
 }
 
 const styles = StyleSheet.create({

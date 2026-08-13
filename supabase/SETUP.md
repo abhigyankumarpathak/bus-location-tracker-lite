@@ -19,9 +19,18 @@ same logins work in both. Everything else lite needs is created alongside under
 names the full app does not use: `buses`, `bus_devices`, `stops`, `bus_stops`,
 `student_stops`, `bus_locations`, `alerts_sent`.
 
-**Nothing in this path alters, drops or writes to a full-app table.** That is
-verified: after installing lite's schema into the same database, the full app's
-own 36-assertion end-to-end test still passes.
+**Installing lite alters, drops or creates nothing that belongs to the full
+app.** That is verified: with lite's schema in the same database and without it,
+the full app's own end-to-end test gives identical results.
+
+**One shared table does get written to, on purpose.** When an admin links a
+parent to a child on Admin → People, lite inserts into `guardian_links` — which
+in this mode is the *full app's* table, and the full app will honour the link.
+That is the correct answer, since a guardian is a guardian in both apps, but it
+is worth knowing before you experiment: a family you link here is a family the
+full app now treats as linked. Lite only ever inserts and deletes; it never
+updates a link, and it writes `status = 'accepted'` explicitly because the full
+app's default is `pending` and a pending link is a parent who sees nothing.
 
 1. **SQL Editor → New query →** paste all of [`schema-shared.sql`](./schema-shared.sql) → Run.
    It refuses to run if the full app's tables are not there, rather than
@@ -82,6 +91,54 @@ select code from invites where role = 'admin' and used_at is null;
 
 Open the app → **I have an invite code** → enter it. Every other account is
 invited from Admin → Invites after that.
+
+---
+
+## Already installed before 13 August 2026?
+
+Phase 3 added two functions, and nothing else. Both schema files now contain
+them, so a fresh install needs nothing extra — but a database set up earlier
+does:
+
+**SQL Editor →** paste
+[`patches/2026-08-13-phase3-runs-and-keys.sql`](./patches/2026-08-13-phase3-runs-and-keys.sql)
+→ Run. It touches no table, is safe to re-run, and refuses to run where lite is
+not installed.
+
+Without it, Admin → Stops cannot save a run and Admin → Buses cannot rotate a
+tracker key; everything else works.
+
+---
+
+## Running the RLS test
+
+[`rls-test.sql`](./rls-test.sql) queries the database directly as each role, with
+the app out of the loop. That is the only way to know the policies hold — the
+full app once found a suspended account whose session still worked, because the
+check lived in the UI.
+
+**It is destructive.** It truncates `auth.users` and the fleet. Never point it at
+anything you care about.
+
+It needs `auth.users`, `auth.uid()` and the PostgREST roles, which means a
+Supabase project — or [`local-shim.sql`](./local-shim.sql), which fakes just
+enough of them to run it against a plain local PostgreSQL:
+
+```sh
+createdb -p 5432 lite_test
+psql -d lite_test -f supabase/local-shim.sql
+psql -d lite_test -f supabase/schema.sql
+psql -d lite_test -f supabase/rls-test.sql
+```
+
+Every assertion prints `[PASS]` or `[FAIL]`. As of phase 3 there are **32, all
+passing**, and the file is re-runnable — it clears the fleet on the way in, so a
+second run does not report the first run's leftovers as failures.
+
+The shim is not a Supabase emulator. No GoTrue, no PostgREST, no Realtime — and
+one consequence worth knowing if you also point the *full* app's test at it: its
+push-notification assertion fails there for want of machinery the shim does not
+fake, with or without lite installed.
 
 ---
 

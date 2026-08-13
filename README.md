@@ -10,8 +10,10 @@ watchdog on the clock. It answers *"where is my child, and who has them."*
 **This one answers one question: where is the bus, and when does it reach my
 stop.** It never claims to know where a child is.
 
-> **Status: phase 1 of 6.** The scaffold runs and the schema exists. Every screen
-> behind the role guard is a placeholder naming the phase that fills it in.
+> **Status: phase 3 of 6.** Accounts work, and an admin can describe the whole
+> operation — buses and their tracker keys, stops, the order a bus passes them,
+> and who watches which one. Nothing is on a map yet, because nothing reports a
+> position until phase 4. The parent and student screens are still placeholders.
 > See [CHANGELOG](CHANGELOG.md) and [docs/FEATURES.md](docs/FEATURES.md).
 
 ## The product
@@ -33,13 +35,17 @@ six; eleven tables against twenty-five, four of them shared.
 ```sh
 npm install
 cp .env.example .env      # fill in from your Supabase project
-npx expo start --clear
+npm start -- --clear      # http://localhost:8082
 ```
 
 The `--clear` is not optional: Expo bakes `EXPO_PUBLIC_*` into the bundle, so a
 warm cache keeps serving the old values.
 
 Without a `.env` the app shows a "Connect Supabase" screen rather than crashing.
+
+**Port 8082, not Expo's default 8081.** A favicon cache is per-origin, so two
+Expo apps taking turns on `localhost:8081` show each other's tab icon. Pinning
+the port means this app is always this app.
 
 ### The database — two ways
 
@@ -51,9 +57,13 @@ Without a `.env` the app shows a "Connect Supabase" screen rather than crashing.
 Sharing works because four tables are common to both apps — `organization`,
 `profiles`, `invites`, `guardian_links` — so the same logins work in both. Lite's
 own seven tables sit alongside under names the full app does not use, and
-**nothing in that path alters or writes to a full-app table.** Verified: with
-lite installed in the same database, the full app's own 36-assertion end-to-end
-test still passes.
+**installing lite alters or drops nothing that belongs to the full app.**
+Verified: with lite in the same database and without it, the full app's own
+end-to-end test gives identical results.
+
+One shared table *is* written to: linking a family on Admin → People inserts into
+`guardian_links`, and the full app honours that link. Correct — a guardian is a
+guardian in both — but worth knowing before you experiment.
 
 Details and the caveats in [supabase/SETUP.md](supabase/SETUP.md).
 

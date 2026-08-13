@@ -245,6 +245,88 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- ---------------------------------------------------------------------------
+-- Admin configuration
+--
+-- Two jobs that cannot be done from the client, for two different reasons.
+-- ---------------------------------------------------------------------------
+
+/**
+ * Replace a bus's ordered run, in one transaction.
+ *
+ * `unique (bus_id, position)` is DEFERRABLE INITIALLY DEFERRED, and deferral
+ * only reaches to the end of a TRANSACTION — while every PostgREST call is its
+ * own. So "move this stop up" from the client is two updates in two
+ * transactions, and the first one collides on a position the second was about
+ * to vacate. The whole ordered list arrives here instead and is renumbered 1..n
+ * together.
+ *
+ * Returns how many student assignments it dropped. A stop that is no longer on
+ * the run cannot have anyone assigned to it on this bus, and leaving those rows
+ * would promise a family a stop the bus never reaches. The caller is expected
+ * to have said so before calling.
+ */
+create or replace function set_bus_run(target_bus uuid, ordered_stops uuid[])
+returns int
+language plpgsql security definer set search_path = public as $$
+declare
+  keep uuid[] := coalesce(ordered_stops, '{}'::uuid[]);
+  dropped int;
+begin
+  if not is_admin() then
+    raise exception 'Only an administrator can change a run.';
+  end if;
+
+  -- Caught here so the message names the problem. The unique constraint would
+  -- fire too, several steps later, saying something about an index.
+  if (select count(distinct s) from unnest(keep) s) <> coalesce(array_length(keep, 1), 0) then
+    raise exception 'A stop can appear only once on a run.';
+  end if;
+
+  delete from student_stops
+   where bus_id = target_bus and not (stop_id = any (keep));
+  get diagnostics dropped = row_count;
+
+  delete from bus_stops
+   where bus_id = target_bus and not (stop_id = any (keep));
+
+  insert into bus_stops (bus_id, stop_id, position)
+  select target_bus, s.stop_id, s.ord::int
+    from unnest(keep) with ordinality as s(stop_id, ord)
+      on conflict (bus_id, stop_id) do update set position = excluded.position;
+
+  return dropped;
+end;
+$$;
+
+grant execute on function set_bus_run(uuid, uuid[]) to authenticated;
+
+/**
+ * Issue a bus's tracker a fresh key, invalidating the old one.
+ *
+ * Generated in the database rather than in the app because a device_key is a
+ * password, and the client has no business choosing one. The upsert also
+ * repairs a bus that somehow has no device row.
+ */
+create or replace function rotate_device_key(target_bus uuid) returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  fresh text := encode(gen_random_bytes(24), 'hex');
+begin
+  if not is_admin() then
+    raise exception 'Only an administrator can rotate a tracker key.';
+  end if;
+
+  insert into bus_devices (bus_id, device_key, rotated_at)
+  values (target_bus, fresh, now())
+      on conflict (bus_id) do update set device_key = fresh, rotated_at = now();
+
+  return fresh;
+end;
+$$;
+
+grant execute on function rotate_device_key(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
 -- Signup: the ONLY way an account is created
 -- ---------------------------------------------------------------------------
 

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../../src/lib/auth';
@@ -18,6 +18,7 @@ import {
   Screen,
   SectionLabel,
   Title,
+  notify,
   theme,
 } from '../../src/components/ui';
 
@@ -102,7 +103,9 @@ export default function AdminInvites() {
 
     const code = (data as Invite).code;
     await copy(code);
-    Alert.alert(
+    // `notify`, not `Alert.alert`: the latter is a no-op on web, and an admin
+    // working at a desk would have created a code they never got to see.
+    notify(
       'Invite created',
       `${code}\n\nCopied. It works once, expires in 14 days, and makes a ${ROLE_LABEL[role].toLowerCase()} account.`,
     );

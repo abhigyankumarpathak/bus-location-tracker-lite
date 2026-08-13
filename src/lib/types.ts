@@ -87,6 +87,29 @@ export interface StudentStop {
   uses_it: boolean;
 }
 
+/**
+ * Which parent may watch which student's bus.
+ *
+ * In the full app this is a consent flow: one side proposes, the other accepts,
+ * and RLS enforces that the accepting party is not the proposing one. Here an
+ * **admin** sets it, because families are passive in this app and there is
+ * nothing for them to agree to — the link decides which BUS a parent can see,
+ * and says nothing about a child.
+ *
+ * Lite only ever writes `accepted`. It writes the status explicitly rather than
+ * relying on a default, because in a shared project this is the full app's table
+ * and there the default is `pending` — a link left pending is a parent who sees
+ * nothing.
+ */
+export interface GuardianLink {
+  id: string;
+  parent_id: string;
+  student_id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  requested_by: string;
+  created_at: string;
+}
+
 /** A position report from the tracker in the vehicle. Never from a phone. */
 export interface BusLocation {
   id: number;
