@@ -10,6 +10,46 @@ and nothing from there appears here.
 
 ## 13 August 2026
 
+### Phase 2 — accounts, and proving RLS holds
+
+**Invites, which are the only way an account exists.** Admin → Invites issues a
+code, and *the code carries the role*: the signup trigger reads the role off the
+invite row and ignores anything the client sends, so a hostile signup cannot
+make itself an admin. Codes are single-use, expire in 14 days, revocable, and
+can be locked to one email address so a forwarded code achieves nothing.
+Creating one copies it to the clipboard, because the next thing anyone does is
+paste it into a message.
+
+**People.** Admin → People lists every account and lets an admin pause or
+restore access. Suspension has to bite at the database or it is theatre — a
+suspended user's session keeps working and `auth.uid()` is still their id — so
+every policy is gated on `is_active()`, which reads the status set here. An
+admin cannot pause themselves, because they could not undo it.
+
+**Signup refuses roles this app cannot serve.** When sharing a database with the
+full transport app, that app's admins can issue `driver` and `coordinator`
+invites. Redeeming one here would have created a real account that then saw
+nothing at all. It is now refused up front, naming which app the code belongs
+to. The People list filters those roles out for the same reason.
+
+The signup screen's role descriptions were rewritten. The ported ones promised
+"check in at your hub" and "follow your child from pickup to safe drop-off" —
+both describing the full app, and the second one exactly the claim this app must
+never make.
+
+**RLS tested with the app out of the loop.** `supabase/rls-test.sql` queries the
+database directly as each role — the only way to know, since the full app once
+found a suspended account whose session still worked because the check lived in
+the UI. **19 assertions, all passing:**
+
+- a student sees the bus they ride and **not** another one;
+- a parent sees their child's bus and no others;
+- a **suspended** student sees nothing at all — no positions, no assignments, not
+  even the stop list;
+- no non-admin can read a `device_key`;
+- a student cannot create a bus, move themselves to another one, or fake a
+  position.
+
 ### Phase 1 — the scaffold, and two ways to hold the data
 
 The project exists and runs. Nothing is wired to the database yet; every screen

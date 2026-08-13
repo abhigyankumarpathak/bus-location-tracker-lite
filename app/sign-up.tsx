@@ -16,13 +16,23 @@ import { Badge, Button, Card, ErrorText, Field, Screen, Title, theme } from '../
  * form appears, so a wrong one fails immediately rather than after they have
  * typed everything.
  */
+/**
+ * What each role actually gets. Worded carefully: this app shows where a BUS is
+ * and never claims to know where a child is, so none of these may promise
+ * boarding, presence or a safe arrival.
+ *
+ * `driver` and `coordinator` exist only when sharing a database with the full
+ * app. They are not roles here, and an invite carrying one is refused below
+ * rather than silently creating an account that can see nothing.
+ */
 const ROLE_BLURB: Record<string, string> = {
-  student: 'See today’s trip, check in at your hub, and set your club plans.',
-  parent: 'Follow your child from pickup to safe drop-off, and report changes.',
-  driver: 'Run your assigned trips and record boarding and drop-off.',
-  coordinator: 'Run daily operations and resolve exceptions.',
-  admin: 'Full access, including configuration and inviting others.',
+  student: 'See where your bus is, and how many minutes until it reaches your stop.',
+  parent: 'See where your children’s buses are, and get told when one is nearly at their stop.',
+  admin: 'Set up buses, stops and who rides what — and invite everyone else.',
 };
+
+/** Roles this app can actually serve. */
+const LITE_ROLES = ['student', 'parent', 'admin'];
 
 export default function SignUp() {
   const { signUp } = useAuth();
@@ -50,6 +60,20 @@ export default function SignUp() {
         setInvite(null);
         return;
       }
+
+      // When this app shares a database with the full Student Transportation
+      // Platform, that app's admins can issue `driver` and `coordinator`
+      // invites. Redeeming one here would create a real account that then sees
+      // nothing at all, because neither role has a route group in this app.
+      // Refuse it up front and say where it belongs.
+      if (!LITE_ROLES.includes(details.role ?? '')) {
+        setError(
+          `That code is for a ${details.role} account, which this app does not have. It belongs to the full transport app — use that one instead.`,
+        );
+        setInvite(null);
+        return;
+      }
+
       setInvite(details);
       // The office already knows who they are — prefill it.
       if (details.full_name) setFullName(details.full_name);

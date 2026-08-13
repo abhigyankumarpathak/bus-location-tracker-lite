@@ -4,8 +4,8 @@ The companion to [CHANGELOG](../CHANGELOG.md). This document exists mostly for
 the second half: the failure mode for this project is quietly rebuilding the full
 app one reasonable-sounding feature at a time.
 
-**Status: phase 1 of 6 complete.** The scaffold runs, the schema exists, nothing
-is wired to it yet.
+**Status: phase 2 of 6 complete.** Accounts work end to end and RLS is proven.
+Nothing is on a map yet.
 
 ---
 
@@ -66,11 +66,25 @@ become eleven — and four of those eleven are the shared auth ones.
 | `import-from-full.sql` — brings the full app's test data across | ✅ |
 | Every screen behind the guards | ⬜ Placeholders naming the phase that fills them in |
 
-### Phases 2–6 — not built
+### Phase 2 — accounts ✅
+
+| | |
+| --- | --- |
+| Admin issues invite codes; the code carries the role | ✅ |
+| Codes single-use, 14-day expiry, revocable, lockable to one email | ✅ |
+| Admin sees every account and can pause / restore access | ✅ |
+| Signup refuses a `driver` or `coordinator` invite from the shared database | ✅ |
+| RLS verified as each role, with the app out of the loop | ✅ 19 assertions — `supabase/rls-test.sql` |
+
+What RLS is proven to do: a student sees only the bus they ride; a parent only
+their children's; a **suspended** account sees nothing at all; no non-admin can
+read a `device_key`; and a student cannot create a bus, move themselves to
+another, or fake a position.
+
+### Phases 3–6 — not built
 
 | Phase | What it adds |
 | --- | --- |
-| 2 · Auth | Invite management in the admin app; the three roles exercised end to end |
 | 3 · Admin config | CRUD for buses, stops, the ordered run, and student→bus→stop assignment |
 | 4 · Location in | `ingest-location` deployed, plus a simulator so 5 and 6 need no hardware |
 | 5 · The map | Live bus over its stops, minutes-away, and *last seen* when the tracker goes quiet |

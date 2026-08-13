@@ -6,7 +6,7 @@ export default function AdminLayout() {
     <Tabs screenOptions={tabScreenOptions}>
       <Tabs.Screen name="index" options={{ title: 'Buses' }} />
       <Tabs.Screen name="stops" options={{ title: 'Stops' }} />
-      <Tabs.Screen name="students" options={{ title: 'Students' }} />
+      <Tabs.Screen name="students" options={{ title: 'People' }} />
       <Tabs.Screen name="invites" options={{ title: 'Invites' }} />
     </Tabs>
   );

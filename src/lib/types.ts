@@ -98,6 +98,28 @@ export interface BusLocation {
   recorded_at: string;
 }
 
+/**
+ * How an account comes into existence. Ported intact from the full app, because
+ * the rule it encodes is the one worth keeping: the role lives on the INVITE,
+ * and the signup trigger reads it from there rather than from anything the
+ * client sends.
+ */
+export interface Invite {
+  id: string;
+  code: string;
+  role: Role;
+  full_name: string;
+  /** If set, only this address may redeem the code. */
+  email: string | null;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+  expires_at: string;
+  used_by: string | null;
+  used_at: string | null;
+  revoked_at: string | null;
+}
+
 export const ROLE_LABEL: Record<Role, string> = {
   student: 'Student',
   parent: 'Parent',
