@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Bus, Stop } from '../lib/types';
+import { Map } from './Map';
+import type { MapMarker } from './Map';
 import {
   Badge,
   Button,
@@ -67,8 +69,44 @@ export function BusRun({
     setError('');
   }, [bus.id, savedKey]);
 
-  const byId = useMemo(() => new Map(stops.map((s) => [s.id, s])), [stops]);
+  // A plain record rather than a `Map`, because `Map` is the map component here.
+  const byId = useMemo(
+    () => Object.fromEntries(stops.map((s) => [s.id, s])) as Record<string, Stop>,
+    [stops],
+  );
   const dirty = draft.join(',') !== savedKey;
+
+  /**
+   * The run as it currently reads, for the map — the DRAFT, not the saved order.
+   * Reordering with ↑ and ↓ redraws the line, which is the only way to see that
+   * a sequence doubles back on itself before it becomes an ETA that does too.
+   */
+  const pins = useMemo(() => {
+    const found: { stop: Stop; position: number }[] = [];
+    draft.forEach((id, i) => {
+      const stop = byId[id];
+      if (stop) found.push({ stop, position: i + 1 });
+    });
+    return found;
+  }, [draft, byId]);
+
+  const markers = useMemo<MapMarker[]>(
+    () =>
+      pins.map(({ stop, position }) => ({
+        id: stop.id,
+        lat: stop.lat,
+        lng: stop.lng,
+        title: stop.name,
+        kind: 'stop',
+        badge: String(position),
+      })),
+    [pins],
+  );
+
+  const path = useMemo(
+    () => pins.map(({ stop }) => ({ lat: stop.lat, lng: stop.lng })),
+    [pins],
+  );
 
   const term = search.trim().toLowerCase();
   const available = stops.filter(
@@ -95,7 +133,7 @@ export function BusRun({
     if (losing > 0) {
       const names = removed
         .filter((id) => riders[id])
-        .map((id) => byId.get(id)?.name ?? 'a stop')
+        .map((id) => byId[id]?.name ?? 'a stop')
         .join(', ');
       const agreed = await confirmAction(
         'This removes student assignments',
@@ -131,48 +169,51 @@ export function BusRun({
           {bus.label} has no stops yet. Add them below in the order the bus passes them.
         </Empty>
       ) : (
-        draft.map((stopId, i) => {
-          const stop = byId.get(stopId);
-          const waiting = riders[stopId] ?? 0;
-          return (
-            <Card key={stopId}>
-              <Row style={styles.between}>
-                <Row style={styles.grow}>
-                  <View style={styles.position}>
-                    <Text style={styles.positionText}>{i + 1}</Text>
-                  </View>
-                  <View style={styles.grow}>
-                    <Text style={styles.name}>{stop?.name ?? 'Unknown stop'}</Text>
-                    <Text style={styles.fine}>
-                      {stop?.address ?? `${stop?.lat.toFixed(4)}, ${stop?.lng.toFixed(4)}`}
-                      {waiting ? ` · ${waiting} student${waiting === 1 ? '' : 's'}` : ''}
-                    </Text>
-                  </View>
+        <>
+          <Map markers={markers} path={path} style={styles.map} />
+          {draft.map((stopId, i) => {
+            const stop = byId[stopId];
+            const waiting = riders[stopId] ?? 0;
+            return (
+              <Card key={stopId}>
+                <Row style={styles.between}>
+                  <Row style={styles.grow}>
+                    <View style={styles.position}>
+                      <Text style={styles.positionText}>{i + 1}</Text>
+                    </View>
+                    <View style={styles.grow}>
+                      <Text style={styles.name}>{stop?.name ?? 'Unknown stop'}</Text>
+                      <Text style={styles.fine}>
+                        {stop?.address ?? `${stop?.lat.toFixed(4)}, ${stop?.lng.toFixed(4)}`}
+                        {waiting ? ` · ${waiting} student${waiting === 1 ? '' : 's'}` : ''}
+                      </Text>
+                    </View>
+                  </Row>
+                  {stop && !stop.active ? <Badge label="Paused" tone="warn" /> : null}
                 </Row>
-                {stop && !stop.active ? <Badge label="Paused" tone="warn" /> : null}
-              </Row>
-              <Row style={styles.wrap}>
-                <Button
-                  label="↑"
-                  variant="secondary"
-                  disabled={i === 0}
-                  onPress={() => move(i, -1)}
-                />
-                <Button
-                  label="↓"
-                  variant="secondary"
-                  disabled={i === draft.length - 1}
-                  onPress={() => move(i, 1)}
-                />
-                <Button
-                  label="Remove"
-                  variant="ghost"
-                  onPress={() => setDraft(draft.filter((id) => id !== stopId))}
-                />
-              </Row>
-            </Card>
-          );
-        })
+                <Row style={styles.wrap}>
+                  <Button
+                    label="↑"
+                    variant="secondary"
+                    disabled={i === 0}
+                    onPress={() => move(i, -1)}
+                  />
+                  <Button
+                    label="↓"
+                    variant="secondary"
+                    disabled={i === draft.length - 1}
+                    onPress={() => move(i, 1)}
+                  />
+                  <Button
+                    label="Remove"
+                    variant="ghost"
+                    onPress={() => setDraft(draft.filter((id) => id !== stopId))}
+                  />
+                </Row>
+              </Card>
+            );
+          })}
+        </>
       )}
 
       {dirty ? (
@@ -236,6 +277,8 @@ const styles = StyleSheet.create({
   between: { justifyContent: 'space-between' },
   grow: { flex: 1 },
   wrap: { flexWrap: 'wrap' },
+  // A fixed height: the map sits inside a ScrollView, where `flex: 1` collapses.
+  map: { height: 280 },
   name: { fontSize: 15, fontWeight: '700', color: theme.text },
   fine: { fontSize: 12, color: theme.faint, lineHeight: 17 },
   warn: { fontSize: 13, color: theme.warn, fontWeight: '600' },

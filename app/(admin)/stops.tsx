@@ -5,6 +5,7 @@ import { supabase } from '../../src/lib/supabase';
 import { geocode } from '../../src/lib/geocode';
 import type { Bus, Stop } from '../../src/lib/types';
 import { BusRun } from '../../src/components/BusRun';
+import { Map } from '../../src/components/Map';
 import {
   Badge,
   Button,
@@ -299,6 +300,28 @@ function StopForm({
   const set = (key: keyof StopValues) => (v: string) =>
     setValues((prev) => ({ ...prev, [key]: v }));
 
+  /**
+   * The pin, once there is one worth drawing.
+   *
+   * The geocoder's own description of what it matched catches "Oak Rd, wrong
+   * county"; it does not catch "Oak Rd, right county, wrong side of the river".
+   * Seeing the point on a map does, and it costs nothing to look.
+   */
+  const lat = Number(values.lat);
+  const lng = Number(values.lng);
+  const pinned =
+    values.lat.trim() !== '' &&
+    values.lng.trim() !== '' &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lng) <= 180;
+
+  const pin = useMemo(
+    () => [{ id: 'pin', lat, lng, title: values.name.trim() || 'This stop', kind: 'pickup' as const }],
+    [lat, lng, values.name],
+  );
+
   async function lookUp() {
     setError('');
     setMatched('');
@@ -389,6 +412,8 @@ function StopForm({
         </View>
       </Row>
 
+      {pinned ? <Map markers={pin} zoom={16} style={styles.map} /> : null}
+
       <ErrorText>{error}</ErrorText>
 
       <Row style={styles.wrap}>
@@ -405,6 +430,8 @@ const styles = StyleSheet.create({
   wrap: { flexWrap: 'wrap' },
   pair: { alignItems: 'flex-start' },
   dim: { opacity: 0.7 },
+  // Fixed height: inside a ScrollView `flex: 1` has nothing to fill.
+  map: { height: 220 },
   name: { fontSize: 15, fontWeight: '700', color: theme.text },
   fine: { fontSize: 12, color: theme.faint, lineHeight: 17 },
   coords: { fontSize: 11, color: theme.faint, letterSpacing: 0.3 },

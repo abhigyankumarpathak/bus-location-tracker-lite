@@ -10,6 +10,68 @@ and nothing from there appears here.
 
 ## 13 August 2026
 
+### A map component, and a real one on the web
+
+The map arrives ahead of phase 5, because two admin screens needed it before
+anything is reporting a position. `Map.tsx` and `Map.web.tsx` came across from
+the full app as one component with two implementations — `expo-maps` behind an
+`AppleMaps.View` / `GoogleMaps.View` split on the phone, and Metro resolving
+`Map.web.tsx` first in the browser. That resolution is the mechanism, not a
+convenience: `expo-maps` has no web build at all and throws at module load, and
+a runtime `Platform.OS` check cannot save you because Metro resolves imports
+when it bundles.
+
+**The web half is Leaflet, and an actual map.** The full app spends its web
+implementation drawing the route as dots down a rail and telling the reader to
+open the phone app. This one draws tiles. That matters here more than it does
+there: stops in this app are *found by address* rather than typed as
+coordinates, and the geocoder's own description of what it matched catches "Oak
+Road, wrong county" but not "Oak Road, right county, wrong side of the river".
+So the stop form now shows the pin as soon as there is one, and the run shows
+the whole ordered sequence with the line drawn through it — in **draft** order,
+so reordering with ↑ and ↓ redraws the line and a run that doubles back on
+itself is visible before it becomes an ETA that does too.
+
+Leaflet came in as a plain dependency driven from one effect rather than
+`react-leaflet`; the component was already the seam that isolates the map, and a
+wrapper around a wrapper buys nothing. Details worth not rediscovering:
+
+- **The default marker icon does not render.** `leaflet.css` reaches for
+  `images/marker-icon.png` through `url()`, which does not resolve through
+  Metro. Every pin is an `L.divIcon` with inline HTML — which is what the run's
+  position numbers ride on anyway, via a new optional `badge` on `MapMarker`.
+- **The map is built in a ref callback, not a mount effect.** The container is
+  not always rendered — with nothing to show, the component renders a panel
+  instead — so "on mount" is the wrong moment: a `[]` effect runs once against a
+  container that does not exist yet and never runs again when the first marker
+  arrives. That is a permanently blank map on exactly the screen phase 5 adds.
+  Teardown then arrives as a `null` node and has to call `map.remove()`, because
+  Leaflet stamps the element and throws *"Map container is already initialized"*
+  on the next attach. React 19's ref-cleanup return does not help:
+  `react-native-web` merges refs through a function that discards return values.
+- **The camera is not driven from props on web**, which is the one deliberate
+  divergence from the native map. A browser map is panned with a mouse, and
+  re-centring on every incoming fix snatches it back from whoever is reading it.
+  The view fits the stops once, then follows the bus only when it leaves the
+  visible area — which is the behaviour phase 5 wants when positions start
+  arriving.
+- **The wheel does not zoom until the map is clicked.** Both maps sit inside a
+  long `ScrollView`; one that grabs the wheel traps the page.
+- CARTO's dark basemap, so the map sits on the app's near-black rather than
+  fighting it. Free, with attribution, and the URL and the credit line move
+  together.
+
+The seam is proven rather than assumed: `expo export -p ios` produces a bundle
+with no Leaflet in it, and the web export emits `leaflet.css` as its own bundle.
+Neither map has yet been drawn on a screen from this project — the native half
+is the full app's implementation ported across and has not been on a device, and
+nothing has been clicked through in a browser.
+
+Also added: [`docs/prompts/add-leaflet-to-full-app.md`](docs/prompts/add-leaflet-to-full-app.md)
+— the same change written up as a prompt to run **in the full app**, carrying
+every gotcha above. The full app is read-only from here, so it is a prompt and
+not a patch.
+
 ### Phase 3 — an admin can now describe the operation
 
 Everything a bus tracker needs to know before it can track anything: the

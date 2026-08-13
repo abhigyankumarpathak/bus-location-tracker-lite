@@ -12,8 +12,9 @@ stop.** It never claims to know where a child is.
 
 > **Status: phase 3 of 6.** Accounts work, and an admin can describe the whole
 > operation — buses and their tracker keys, stops, the order a bus passes them,
-> and who watches which one. Nothing is on a map yet, because nothing reports a
-> position until phase 4. The parent and student screens are still placeholders.
+> and who watches which one — and see the stops and the run on a map, on a phone
+> or in a browser. No *bus* is on that map yet: nothing reports a position until
+> phase 4, and the parent and student screens are still placeholders.
 > See [CHANGELOG](CHANGELOG.md) and [docs/FEATURES.md](docs/FEATURES.md).
 
 ## The product
@@ -47,6 +48,11 @@ Without a `.env` the app shows a "Connect Supabase" screen rather than crashing.
 Expo apps taking turns on `localhost:8081` show each other's tab icon. Pinning
 the port means this app is always this app.
 
+**Maps need a dev build on a phone, but not in a browser.** `expo-maps` is native
+code, so `npm run ios` / `npm run android` rather than Expo Go. On web the map is
+Leaflet and `npm run web` is enough — which is the shorter road to seeing whether
+a stop landed on the right corner.
+
 ### The database — two ways
 
 | | Share the full app's project | Its own project |
@@ -78,6 +84,7 @@ Details and the caveats in [supabase/SETUP.md](supabase/SETUP.md).
 | Position from | The driver's phone | **A tracker in the vehicle** |
 | Families can | Check in, report absences, see a timeline | **Watch. Nothing else.** |
 | Alerts | 15 / 5 min, boarding, drop-off, delay, exceptions | 15 / 5 min, **and at the stop** |
+| Map on web | A route diagram — "open the phone app" | **A real one, Leaflet** ([prompt to fix the full app](docs/prompts/add-leaflet-to-full-app.md)) |
 
 ## Why a separate project
 

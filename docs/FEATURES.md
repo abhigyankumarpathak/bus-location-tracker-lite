@@ -5,8 +5,9 @@ the second half: the failure mode for this project is quietly rebuilding the ful
 app one reasonable-sounding feature at a time.
 
 **Status: phase 3 of 6 complete.** An admin can describe the whole operation —
-buses, stops, the order a bus passes them, and who watches which one. Nothing is
-on a map yet, because nothing is reporting a position yet.
+buses, stops, the order a bus passes them, and who watches which one — and now
+see it on a map, on a phone or in a browser. No *bus* is on that map yet, because
+nothing is reporting a position yet.
 
 ---
 
@@ -93,6 +94,7 @@ another, or fake a position.
 | The ordered run — a bus and the stops it passes | ✅ `set_bus_run()`, batched behind a Save button |
 | Student → bus → stop, with the `uses_it` opt-out | ✅ |
 | Parent ↔ child links | ✅ Not on the phase's list; added because a parent account is empty without one |
+| Maps on both admin screens — the pin, and the run | ✅ Pulled forward from phase 5, see below |
 | RLS re-tested, with the app out of the loop | ✅ 32 assertions — and now runnable locally, see below |
 
 Two things here are database functions rather than client updates, and for
@@ -118,12 +120,43 @@ enough of Supabase — the three PostgREST roles, `auth.users`, `auth.uid()`, an
 the default privileges that make `set role authenticated` behave like a real
 client — to run it against a plain local PostgreSQL instead.
 
+### The map component — pulled forward from phase 5 ✅
+
+One component, two implementations, ported from the full app: `expo-maps` on the
+phone, and **Leaflet** in the browser. Metro resolving `Map.web.tsx` ahead of
+`Map.tsx` is what keeps `expo-maps` — which has no web build and throws at
+module load — out of the web bundle.
+
+The full app's web implementation draws the route as dots down a rail and points
+the reader at the phone app. Here it is a real map, for a reason specific to this
+app: **stops are found by address, not typed as coordinates.** The geocoder's own
+description of what it matched catches the wrong county; it does not catch the
+wrong side of the river. Seeing the point costs nothing.
+
+| | |
+| --- | --- |
+| The stop form shows the pin as soon as there is one | ✅ The geocode confirmation the address lookup was always missing |
+| The run drawn in order, with the line through it | ✅ Draft order, so ↑/↓ redraw it before anything is saved |
+| Ready for a live bus, unused until phase 4 | ✅ `kind: 'bus'` pins draw over stops and follow only when off-screen |
+
+**What has actually been run.** The platform seam is proven rather than assumed:
+`expo export -p ios` produces a bundle with no Leaflet in it, and
+`expo export -p web` emits `leaflet.css` as its own bundle linked from
+`index.html`. What that does *not* cover is either map drawn on a screen — the
+native half is the full app's implementation ported across and has not been put
+on a device from here, and nothing has been clicked through in a browser. Both
+are worth doing before phase 5 leans on them.
+
+Written up as a prompt for doing the same to the full app —
+[`prompts/add-leaflet-to-full-app.md`](prompts/add-leaflet-to-full-app.md). The
+full app is read-only from here, so it is a prompt and not a patch.
+
 ### Phases 4–6 — not built
 
 | Phase | What it adds |
 | --- | --- |
 | 4 · Location in | `ingest-location` deployed, plus a simulator so 5 and 6 need no hardware |
-| 5 · The map | Live bus over its stops, minutes-away, and *last seen* when the tracker goes quiet |
+| 5 · The map | The component exists; phase 5 is the *live* half — minutes-away, and *last seen* when the tracker goes quiet |
 | 6 · Notifications | The three milestones, geofence entry, de-dup, Expo push |
 
 ## Decisions carried over from the full app
@@ -155,5 +188,8 @@ Answered when the phase that needs them arrives, not before.
    purge is not coming across.
 4. **Which tracker hardware**, and does it POST to an endpoint directly or go
    through a vendor platform that needs polling?
-5. **Web build?** It exports today. Whether it is a target worth supporting is a
-   separate question.
+5. ~~**Web build?**~~ **Answered: yes, for admins.** The stop and run screens are
+   desk work, and the geocode confirmation only means anything on a map — so the
+   web build carries a real Leaflet one rather than the full app's fallback
+   diagram. Whether *families* are meant to watch a bus in a browser, or only on
+   a phone, is still open and lands with phase 5.
