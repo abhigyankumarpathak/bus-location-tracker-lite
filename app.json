@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Bus Tracker",
+    "slug": "bus-tracking-app-lite",
+    "version": "0.1.0",
+    "scheme": "bustrackerlite",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.thecoder12321.bus-tracking-app-lite"
+    },
+    "android": {
+      "package": "com.thecoder12321.bustrackingapplite",
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "extra": {
+      "eas": { "projectId": "REPLACE-WITH-YOUR-EAS-PROJECT-ID" }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-maps",
+      [
+        "expo-notifications",
+        {
+          "color": "#38BDF8",
+          "defaultChannel": "default"
+        }
+      ]
+    ]
+  }
+}

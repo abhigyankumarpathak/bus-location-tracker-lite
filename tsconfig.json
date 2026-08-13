@@ -1,0 +1,9 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true
+  },
+  "include": ["app", "src", "*.ts", "*.tsx"],
+  "//": "supabase/functions are Deno, not React Native — their own runtime and globals. Typechecking them with the app's config produces nothing but noise.",
+  "exclude": ["node_modules", "supabase"]
+}
